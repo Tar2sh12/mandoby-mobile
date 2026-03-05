@@ -85,6 +85,8 @@ class ItemModel {
   final String? note;
   final String? shiftId;
   final PersonModel? person;
+  //add date field
+  final String? date;
 
   ItemModel({
     required this.id,
@@ -94,6 +96,7 @@ class ItemModel {
     this.note,
     this.shiftId,
     this.person,
+    this.date,
   });
 
   factory ItemModel.fromJson(Map<String, dynamic> j) => ItemModel(
@@ -108,6 +111,7 @@ class ItemModel {
     note: j['note'],
     shiftId: j['shiftId'] is String ? j['shiftId'] : j['shiftId']?['_id'],
     person: j['personId'] is Map ? PersonModel.fromJson(j['personId']) : null,
+    date: j['date'],
   );
 
   double get total => cost * quantity;
