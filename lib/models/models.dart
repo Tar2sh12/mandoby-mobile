@@ -77,16 +77,17 @@ class PersonModel {
 }
 
 // ─── Item ─────────────────────────────────────────────
+// ─── Item ─────────────────────────────────────────────
 class ItemModel {
   final String id;
   final String name;
   final int quantity;
   final double cost;
   final String? note;
-  final String? shiftId;
-  final PersonModel? person;
-  //add date field
   final String? date;
+  final ItemShiftRef? shiftId;
+  final ItemPersonRef? personId;
+  bool checked;
 
   ItemModel({
     required this.id,
@@ -94,9 +95,10 @@ class ItemModel {
     required this.quantity,
     required this.cost,
     this.note,
-    this.shiftId,
-    this.person,
     this.date,
+    this.shiftId,
+    this.personId,
+    required this.checked,
   });
 
   factory ItemModel.fromJson(Map<String, dynamic> j) => ItemModel(
@@ -109,12 +111,47 @@ class ItemModel {
         ? j['cost']
         : (j['cost'] as num).toDouble(),
     note: j['note'],
-    shiftId: j['shiftId'] is String ? j['shiftId'] : j['shiftId']?['_id'],
-    person: j['personId'] is Map ? PersonModel.fromJson(j['personId']) : null,
     date: j['date'],
+    shiftId: j['shiftId'] is Map
+        ? ItemShiftRef.fromJson(j['shiftId'])
+        : j['shiftId'] is String
+        ? ItemShiftRef(id: j['shiftId'], name: null)
+        : null,
+    personId: j['personId'] is Map
+        ? ItemPersonRef.fromJson(j['personId'])
+        : j['personId'] is String
+        ? ItemPersonRef(id: j['personId'], name: null)
+        : null,
+    checked: j['checked'] ?? false,
   );
 
   double get total => cost * quantity;
+
+  //checked setter 
+  bool settedChecked(bool value) {
+    this.checked = value;
+    return this.checked;
+  }
+}
+
+class ItemShiftRef {
+  final String id;
+  final String? name;
+
+  ItemShiftRef({required this.id, this.name});
+
+  factory ItemShiftRef.fromJson(Map<String, dynamic> j) =>
+      ItemShiftRef(id: j['_id'] ?? '', name: j['name']);
+}
+
+class ItemPersonRef {
+  final String id;
+  final String? name;
+
+  ItemPersonRef({required this.id, this.name});
+
+  factory ItemPersonRef.fromJson(Map<String, dynamic> j) =>
+      ItemPersonRef(id: j['_id'] ?? '', name: j['name']);
 }
 
 // ─── Transaction ──────────────────────────────────────

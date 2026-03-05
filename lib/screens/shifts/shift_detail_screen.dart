@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../api/api_service.dart';
 import '../../models/models.dart';
 import '../../theme.dart';
@@ -12,7 +13,8 @@ class ShiftDetailScreen extends StatefulWidget {
   State<ShiftDetailScreen> createState() => _ShiftDetailScreenState();
 }
 
-class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTickerProviderStateMixin {
+class _ShiftDetailScreenState extends State<ShiftDetailScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tab;
   List<ItemModel> _items = [];
   List<TransactionModel> _transactions = [];
@@ -23,11 +25,15 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
   void initState() {
     super.initState();
     _tab = TabController(length: 2, vsync: this);
+    _tab.addListener(() => setState(() {}));
     _load();
   }
 
   @override
-  void dispose() { _tab.dispose(); super.dispose(); }
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
+  }
 
   Future<void> _load() async {
     setState(() => _loading = true);
@@ -51,6 +57,42 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
 
   double get _totalItems => _items.fold(0, (s, i) => s + i.total);
   double get _totalTx => _transactions.fold(0, (s, t) => s + t.amount);
+  double get _totalBoughtItems=> _items.fold(0, (s, i) =>i.checked ? s + i.total : s ) ;
+  String _formatDate(String? raw) {
+    if (raw == null || raw.isEmpty) return '—';
+    try {
+      final dt = DateTime.parse(raw);
+      return '${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.year}';
+    } catch (_) {
+      return raw;
+    }
+  }
+
+  /// Returns: { dateLabel -> { personName -> [items] } }
+  Map<String, Map<String, List<ItemModel>>> _groupByDateAndPerson() {
+    final Map<String, Map<String, List<ItemModel>>> grouped = {};
+    for (final item in _items) {
+      final dateLabel = _formatDate(item.date);
+      final personName = item?.personId?.name ?? 'Unknown';
+      grouped.putIfAbsent(dateLabel, () => {});
+      grouped[dateLabel]!.putIfAbsent(personName, () => []).add(item);
+    }
+    // Sort dates ascending
+    final sorted = Map.fromEntries(
+      grouped.entries.toList()..sort((a, b) {
+        try {
+          final parse = (String s) {
+            final p = s.split('-');
+            return DateTime(int.parse(p[2]), int.parse(p[1]), int.parse(p[0]));
+          };
+          return parse(a.key).compareTo(parse(b.key));
+        } catch (_) {
+          return a.key.compareTo(b.key);
+        }
+      }),
+    );
+    return sorted;
+  }
 
   void _showAddItemDialog() {
     final nameCtrl = TextEditingController();
@@ -64,10 +106,17 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.bgCard,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 20, left: 20, right: 20, top: 20),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            left: 20,
+            right: 20,
+            top: 20,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,18 +124,46 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Add Item', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                  IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close, color: AppColors.textMuted)),
+                  const Text(
+                    'Add Item',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close, color: AppColors.textMuted),
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
-              AppTextField(label: 'Item name', hint: 'e.g. LM Blue', controller: nameCtrl),
+              AppTextField(
+                label: 'Item name',
+                hint: 'e.g. LM Blue',
+                controller: nameCtrl,
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: AppTextField(label: 'Quantity', hint: '1', controller: qtyCtrl, keyboardType: TextInputType.number)),
+                  Expanded(
+                    child: AppTextField(
+                      label: 'Quantity',
+                      hint: '1',
+                      controller: qtyCtrl,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
                   const SizedBox(width: 12),
-                  Expanded(child: AppTextField(label: 'Cost (EGP)', hint: '85', controller: costCtrl, keyboardType: TextInputType.number)),
+                  Expanded(
+                    child: AppTextField(
+                      label: 'Cost (EGP)',
+                      hint: '85',
+                      controller: costCtrl,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -94,22 +171,43 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
                 DropdownButtonFormField<String>(
                   value: selectedPersonId,
                   dropdownColor: AppColors.bgElevated,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-                  decoration: const InputDecoration(labelText: 'Person (optional)'),
-                  hint: const Text('Select person', style: TextStyle(color: AppColors.textMuted)),
-                  items: _people.map((p) => DropdownMenuItem(value: p.id, child: Text(p.displayName))).toList(),
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Person (optional)',
+                  ),
+                  hint: const Text(
+                    'Select person',
+                    style: TextStyle(color: AppColors.textMuted),
+                  ),
+                  items: _people
+                      .map(
+                        (p) => DropdownMenuItem(
+                          value: p.id,
+                          child: Text(p.displayName),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (v) => setS(() => selectedPersonId = v),
                 ),
                 const SizedBox(height: 12),
               ],
-              AppTextField(label: 'Note', hint: 'Optional...', controller: noteCtrl),
+              AppTextField(
+                label: 'Note',
+                hint: 'Optional...',
+                controller: noteCtrl,
+              ),
               const SizedBox(height: 20),
               AppButton(
                 label: 'Add Item',
                 loading: saving,
                 width: double.infinity,
                 onPressed: () async {
-                  if (nameCtrl.text.isEmpty || qtyCtrl.text.isEmpty || costCtrl.text.isEmpty) {
+                  if (nameCtrl.text.isEmpty ||
+                      qtyCtrl.text.isEmpty ||
+                      costCtrl.text.isEmpty) {
                     showError(context, 'Name, quantity and cost are required');
                     return;
                   }
@@ -122,9 +220,14 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
                       'shiftId': widget.shiftId,
                       'note': noteCtrl.text,
                     };
-                    if (selectedPersonId != null) data['personId'] = selectedPersonId;
+                    if (selectedPersonId != null)
+                      data['personId'] = selectedPersonId;
                     await ApiService().createItem(data);
-                    if (mounted) { Navigator.pop(ctx); showSuccess(context, 'Item added!'); _load(); }
+                    if (mounted) {
+                      Navigator.pop(ctx);
+                      showSuccess(context, 'Item added!');
+                      _load();
+                    }
                   } catch (e) {
                     if (mounted) showError(context, e.toString());
                   }
@@ -149,10 +252,17 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.bgCard,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 20, left: 20, right: 20, top: 20),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            left: 20,
+            right: 20,
+            top: 20,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,19 +270,47 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(child: Text('Edit: ${item.name}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary), overflow: TextOverflow.ellipsis)),
-                  IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close, color: AppColors.textMuted)),
+                  Expanded(
+                    child: Text(
+                      'Edit: ${item.name}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close, color: AppColors.textMuted),
+                  ),
                 ],
               ),
-              const Text('Only changed fields will be sent to the server.', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+              const Text(
+                'Only changed fields will be sent to the server.',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+              ),
               const SizedBox(height: 16),
               AppTextField(label: 'Name', controller: nameCtrl),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: AppTextField(label: 'Quantity', controller: qtyCtrl, keyboardType: TextInputType.number)),
+                  Expanded(
+                    child: AppTextField(
+                      label: 'Quantity',
+                      controller: qtyCtrl,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
                   const SizedBox(width: 12),
-                  Expanded(child: AppTextField(label: 'Cost (EGP)', controller: costCtrl, keyboardType: TextInputType.number)),
+                  Expanded(
+                    child: AppTextField(
+                      label: 'Cost (EGP)',
+                      controller: costCtrl,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -184,17 +322,28 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
                 width: double.infinity,
                 onPressed: () async {
                   final payload = <String, dynamic>{};
-                  if (nameCtrl.text.trim().isNotEmpty && nameCtrl.text.trim() != item.name) payload['name'] = nameCtrl.text.trim();
+                  if (nameCtrl.text.trim().isNotEmpty &&
+                      nameCtrl.text.trim() != item.name)
+                    payload['name'] = nameCtrl.text.trim();
                   final qty = int.tryParse(qtyCtrl.text);
-                  if (qty != null && qty != item.quantity) payload['quantity'] = qty;
+                  if (qty != null && qty != item.quantity)
+                    payload['quantity'] = qty;
                   final cost = double.tryParse(costCtrl.text);
                   if (cost != null && cost != item.cost) payload['cost'] = cost;
-                  if (noteCtrl.text != (item.note ?? '')) payload['note'] = noteCtrl.text;
-                  if (payload.isEmpty) { showError(context, 'No changes to save'); return; }
+                  if (noteCtrl.text != (item.note ?? ''))
+                    payload['note'] = noteCtrl.text;
+                  if (payload.isEmpty) {
+                    showError(context, 'No changes to save');
+                    return;
+                  }
                   setS(() => saving = true);
                   try {
                     await ApiService().updateItem(item.id, payload);
-                    if (mounted) { Navigator.pop(ctx); showSuccess(context, 'Item updated!'); _load(); }
+                    if (mounted) {
+                      Navigator.pop(ctx);
+                      showSuccess(context, 'Item updated!');
+                      _load();
+                    }
                   } catch (e) {
                     if (mounted) showError(context, e.toString());
                   }
@@ -218,10 +367,17 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.bgCard,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom + 20, left: 20, right: 20, top: 20),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            left: 20,
+            right: 20,
+            top: 20,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,8 +385,18 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Record Payment', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                  IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close, color: AppColors.textMuted)),
+                  const Text(
+                    'Record Payment',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close, color: AppColors.textMuted),
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -238,17 +404,39 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
                 DropdownButtonFormField<String>(
                   value: selectedPersonId,
                   dropdownColor: AppColors.bgElevated,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                  ),
                   decoration: const InputDecoration(labelText: 'From person *'),
-                  hint: const Text('Select person', style: TextStyle(color: AppColors.textMuted)),
-                  items: _people.map((p) => DropdownMenuItem(value: p.id, child: Text(p.displayName))).toList(),
+                  hint: const Text(
+                    'Select person',
+                    style: TextStyle(color: AppColors.textMuted),
+                  ),
+                  items: _people
+                      .map(
+                        (p) => DropdownMenuItem(
+                          value: p.id,
+                          child: Text(p.displayName),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (v) => setS(() => selectedPersonId = v),
                 ),
                 const SizedBox(height: 12),
               ],
-              AppTextField(label: 'Amount (EGP)', hint: '600', controller: amtCtrl, keyboardType: TextInputType.number),
+              AppTextField(
+                label: 'Amount (EGP)',
+                hint: '600',
+                controller: amtCtrl,
+                keyboardType: TextInputType.number,
+              ),
               const SizedBox(height: 12),
-              AppTextField(label: 'Description', hint: 'e.g. Payment for items', controller: descCtrl),
+              AppTextField(
+                label: 'Description',
+                hint: 'e.g. Payment for items',
+                controller: descCtrl,
+              ),
               const SizedBox(height: 20),
               AppButton(
                 label: 'Record Payment',
@@ -268,7 +456,11 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
                       'shiftId': widget.shiftId,
                       'description': descCtrl.text,
                     });
-                    if (mounted) { Navigator.pop(ctx); showSuccess(context, 'Payment recorded!'); _load(); }
+                    if (mounted) {
+                      Navigator.pop(ctx);
+                      showSuccess(context, 'Payment recorded!');
+                      _load();
+                    }
                   } catch (e) {
                     if (mounted) showError(context, e.toString());
                   }
@@ -282,18 +474,326 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
     );
   }
 
+  Widget _buildGroupedItems() {
+    final grouped = _groupByDateAndPerson();
+    if (grouped.isEmpty) {
+      return EmptyState(
+        icon: Icons.inventory_2_outlined,
+        title: 'No items',
+        description: 'Add items to this shift',
+        action: AppButton(
+          label: 'Add Item',
+          icon: Icons.add,
+          onPressed: _showAddItemDialog,
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+      itemCount: grouped.length,
+      itemBuilder: (_, dateIndex) {
+        final dateLabel = grouped.keys.elementAt(dateIndex);
+        final personMap = grouped[dateLabel]!;
+        final dateTotalEGP = personMap.values
+            .expand((items) => items)
+            .fold(0.0, (s, i) => s + i.total);
+        final dateTotalBoughtEGP = personMap.values
+            .expand((items) => items)
+            .fold(0.0, (s, i) => i.checked ? s + i.total : s);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 16),
+            // Date header
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentGlow,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.accent.withOpacity(0.4),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_today,
+                              size: 13,
+                              color: AppColors.accent,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              dateLabel,
+                              style: const TextStyle(
+                                color: AppColors.accent,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              "bought item's price ${dateTotalBoughtEGP.toStringAsFixed(0)} EGP",
+                              style: const TextStyle(
+                                color: AppColors.accent,
+                                fontSize: 8,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          'EGP ${dateTotalEGP.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            color: AppColors.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Per-person cards under this date
+            ...personMap.entries.map((personEntry) {
+              final personName = personEntry.key;
+              final items = personEntry.value;
+              final personTotal = items.fold(0.0, (s, i) => s + i.total);
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Person header
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: AppColors.bgElevated,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.border),
+                                ),
+                                child: const Icon(
+                                  Icons.person_outline,
+                                  size: 16,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                personName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            'EGP ${personTotal.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 16),
+
+                      // Items list
+                      ...items.asMap().entries.map((e) {
+                        final item = e.value;
+                        return Column(
+                          children: [
+                            InkWell(
+                              onTap: () async {
+                                try {
+                                  final updated = await ApiService()
+                                      .toggleItemChecked(item.id);
+                                  setState(() {
+                                    final idx = _items.indexWhere(
+                                      (i) => i.id == item.id,
+                                    );
+                                    if (idx != -1) _items[idx] = updated;
+                                  });
+                                } catch (err) {
+                                  if (mounted)
+                                    showError(context, err.toString());
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
+                                ),
+                                child: Row(
+                                  children: [
+                                    // Checkbox
+                                    AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
+                                      width: 22,
+                                      height: 22,
+                                      decoration: BoxDecoration(
+                                        color: item.checked
+                                            ? AppColors.success
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: item.checked
+                                              ? AppColors.success
+                                              : AppColors.border,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: item.checked
+                                          ? const Icon(
+                                              Icons.check,
+                                              size: 14,
+                                              color: Colors.white,
+                                            )
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    // Name + subtitle
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item.name,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 13,
+                                              color: item.checked
+                                                  ? AppColors.textMuted
+                                                  : AppColors.textPrimary,
+                                              decoration: item.checked
+                                                  ? TextDecoration.lineThrough
+                                                  : TextDecoration.none,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            'Qty: ${item.quantity}'
+                                            '${item.note != null && item.note!.isNotEmpty ? ' · ${item.note}' : ''}',
+                                            style: const TextStyle(
+                                              color: AppColors.textMuted,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    // Price + edit
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          'EGP ${item.total.toStringAsFixed(0)}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 13,
+                                            color: item.checked
+                                                ? AppColors.textMuted
+                                                : AppColors.textPrimary,
+                                            decoration: item.checked
+                                                ? TextDecoration.lineThrough
+                                                : TextDecoration.none,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        GestureDetector(
+                                          onTap: () =>
+                                              _showEditItemDialog(item),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(5),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.bgElevated,
+                                              borderRadius:
+                                                  BorderRadius.circular(7),
+                                              border: Border.all(
+                                                color: AppColors.border,
+                                              ),
+                                            ),
+                                            child: const Icon(
+                                              Icons.edit_outlined,
+                                              size: 13,
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (e.key < items.length - 1)
+                              const Divider(height: 12),
+                          ],
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
         title: const Text('Shift Details'),
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: AppColors.textPrimary,
+          ),
+          onPressed: () => context.pop(),
+        ),
         bottom: TabBar(
           controller: _tab,
           labelColor: AppColors.accent,
           unselectedLabelColor: AppColors.textMuted,
           indicatorColor: AppColors.accent,
-          tabs: const [Tab(text: 'Items'), Tab(text: 'Payments')],
+          tabs: const [
+            Tab(text: 'Items'),
+            Tab(text: 'Payments'),
+          ],
         ),
       ),
       body: _loading
@@ -308,24 +808,78 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
                       Expanded(
                         child: AppCard(
                           padding: const EdgeInsets.all(16),
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            const Text('ITEMS', style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 4),
-                            Text('${_items.length}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.accent)),
-                            Text('EGP ${_totalItems.toStringAsFixed(0)}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                          ]),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'ITEMS',
+                                style: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${_items.length}',
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.accent,
+                                ),
+                              ),
+                              Text(
+                                'EGP ${_totalItems.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'total price of items bought ${_totalBoughtItems.toStringAsFixed(0)} EGP',
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: AppCard(
                           padding: const EdgeInsets.all(16),
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            const Text('PAYMENTS', style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 4),
-                            Text('${_transactions.length}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.success)),
-                            Text('EGP ${_totalTx.toStringAsFixed(0)}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                          ]),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'PAYMENTS',
+                                style: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${_transactions.length}',
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.success,
+                                ),
+                              ),
+                              Text(
+                                'EGP ${_totalTx.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -335,81 +889,94 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
                   child: TabBarView(
                     controller: _tab,
                     children: [
-                      // Items tab
+                      // Items tab — grouped by date then person
                       RefreshIndicator(
                         onRefresh: _load,
                         color: AppColors.accent,
-                        child: _items.isEmpty
-                            ? EmptyState(icon: Icons.inventory_2_outlined, title: 'No items', description: 'Add items to this shift', action: AppButton(label: 'Add Item', icon: Icons.add, onPressed: _showAddItemDialog))
-                            : ListView.separated(
-                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
-                                itemCount: _items.length,
-                                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                                itemBuilder: (_, i) {
-                                  final item = _items[i];
-                                  return AppCard(
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 42, height: 42,
-                                          decoration: BoxDecoration(color: AppColors.bgElevated, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.border)),
-                                          child: const Icon(Icons.inventory_2_outlined, color: AppColors.textSecondary, size: 20),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                            Text(item.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.textPrimary)),
-                                            const SizedBox(height: 3),
-                                            Text('Qty: ${item.quantity} · EGP ${item.cost}${item.note != null && item.note!.isNotEmpty ? ' · ${item.note}' : ''}', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                                          ]),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                                          Text('EGP ${item.total.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textPrimary)),
-                                          const SizedBox(height: 4),
-                                          GestureDetector(
-                                            onTap: () => _showEditItemDialog(item),
-                                            child: Container(
-                                              padding: const EdgeInsets.all(6),
-                                              decoration: BoxDecoration(color: AppColors.bgElevated, borderRadius: BorderRadius.circular(8), border: Border.all(color: AppColors.border)),
-                                              child: const Icon(Icons.edit_outlined, size: 14, color: AppColors.textSecondary),
-                                            ),
-                                          ),
-                                        ]),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
+                        child: _buildGroupedItems(),
                       ),
+
                       // Transactions tab
                       RefreshIndicator(
                         onRefresh: _load,
                         color: AppColors.accent,
                         child: _transactions.isEmpty
-                            ? EmptyState(icon: Icons.swap_horiz, title: 'No payments', description: 'Record payments from people', action: AppButton(label: 'Record Payment', color: AppColors.success, icon: Icons.add, onPressed: _showAddTxDialog))
+                            ? EmptyState(
+                                icon: Icons.swap_horiz,
+                                title: 'No payments',
+                                description: 'Record payments from people',
+                                action: AppButton(
+                                  label: 'Record Payment',
+                                  color: AppColors.success,
+                                  icon: Icons.add,
+                                  onPressed: _showAddTxDialog,
+                                ),
+                              )
                             : ListView.separated(
-                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  0,
+                                  16,
+                                  80,
+                                ),
                                 itemCount: _transactions.length,
-                                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 10),
                                 itemBuilder: (_, i) {
                                   final tx = _transactions[i];
                                   return AppCard(
                                     child: Row(
                                       children: [
                                         Container(
-                                          width: 42, height: 42,
-                                          decoration: BoxDecoration(color: AppColors.successGlow, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.success.withOpacity(0.3))),
-                                          child: const Icon(Icons.attach_money, color: AppColors.success, size: 22),
+                                          width: 42,
+                                          height: 42,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.successGlow,
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            border: Border.all(
+                                              color: AppColors.success
+                                                  .withOpacity(0.3),
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.attach_money,
+                                            color: AppColors.success,
+                                            size: 22,
+                                          ),
                                         ),
                                         const SizedBox(width: 12),
                                         Expanded(
-                                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                            Text(tx.description?.isNotEmpty == true ? tx.description! : 'Payment received', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.textPrimary)),
-                                            Text(tx.fromPersonId?.name ?? 'Unknown', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                                          ]),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                tx.description?.isNotEmpty ==
+                                                        true
+                                                    ? tx.description!
+                                                    : 'Payment received',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 14,
+                                                  color: AppColors.textPrimary,
+                                                ),
+                                              ),
+                                              Text(
+                                                tx.fromPersonId?.name ??
+                                                    'Unknown',
+                                                style: const TextStyle(
+                                                  color: AppColors.textMuted,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                        AppBadge.success('+EGP ${tx.amount.toStringAsFixed(0)}'),
+                                        AppBadge.success(
+                                          '+EGP ${tx.amount.toStringAsFixed(0)}',
+                                        ),
                                       ],
                                     ),
                                   );
@@ -426,9 +993,6 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen> with SingleTicker
         backgroundColor: _tab.index == 0 ? AppColors.accent : AppColors.success,
         child: const Icon(Icons.add, color: Colors.white),
       ),
-
-
-      
     );
   }
 }

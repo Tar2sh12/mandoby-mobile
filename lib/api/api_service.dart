@@ -252,6 +252,17 @@ class ApiService {
     }
   }
 
+  Future<ItemModel> toggleItemChecked(String id) async {
+    try {
+      final res = await _dio.patch(
+        '/item/toggle-checked/$id',
+        options: await _opts(),
+      );
+      return ItemModel.fromJson(res.data);
+    } on DioException catch (e) {
+      throw _msg(e);
+    }
+  }
   // ─── Transactions ──────────────────────────────────────
 
   Future<List<TransactionModel>> getTransactionsByShift(String shiftId) async {

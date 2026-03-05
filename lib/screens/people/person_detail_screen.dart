@@ -288,7 +288,6 @@ class _PersonDetailScreenState extends State<PersonDetailScreen> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
                     Expanded(
                       child: AppCard(
                         child: Column(
@@ -327,6 +326,11 @@ class _PersonDetailScreenState extends State<PersonDetailScreen> {
                               ) {
                                 final dateLabel = entry.key;
                                 final items = entry.value;
+                                final checkedTotal = items
+                                    .where((i) => i.checked)
+                                    .fold(0.0, (s, i) => s + i.total);
+                                final hasChecked = items.any((i) => i.checked);
+
                                 return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -334,30 +338,70 @@ class _PersonDetailScreenState extends State<PersonDetailScreen> {
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 8,
                                       ),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.accentGlow,
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          border: Border.all(
-                                            color: AppColors.accent.withOpacity(
-                                              0.3,
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.accentGlow,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: AppColors.accent
+                                                    .withOpacity(0.3),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              dateLabel,
+                                              style: const TextStyle(
+                                                color: AppColors.accent,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        child: Text(
-                                          dateLabel,
-                                          style: const TextStyle(
-                                            color: AppColors.accent,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
+                                          if (hasChecked)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.successGlow,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: AppColors.success
+                                                      .withOpacity(0.3),
+                                                ),
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.check_circle_outline,
+                                                    size: 11,
+                                                    color: AppColors.success,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'EGP ${checkedTotal.toStringAsFixed(0)}',
+                                                    style: const TextStyle(
+                                                      color: AppColors.success,
+                                                      fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     ),
                                     ...items.asMap().entries.map(
@@ -367,28 +411,78 @@ class _PersonDetailScreenState extends State<PersonDetailScreen> {
                                             padding: const EdgeInsets.symmetric(
                                               vertical: 6,
                                             ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
+                                            child: Row(
                                               children: [
-                                                Text(
-                                                  e.value.name,
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.w600,
-                                                    fontSize: 13,
+                                                // Checked indicator dot
+                                                Container(
+                                                  width: 8,
+                                                  height: 8,
+                                                  margin: const EdgeInsets.only(
+                                                    right: 8,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color: e.value.checked
+                                                        ? AppColors.success
+                                                        : AppColors.border,
                                                   ),
                                                 ),
-                                                Text(
-                                                  'Qty: ${e.value.quantity} · EGP ${e.value.cost}',
-                                                  style: const TextStyle(
-                                                    color: AppColors.textMuted,
-                                                    fontSize: 11,
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        e.value.name,
+                                                        style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          fontSize: 13,
+                                                          color: e.value.checked
+                                                              ? AppColors
+                                                                    .textMuted
+                                                              : AppColors
+                                                                    .textPrimary,
+                                                          decoration:
+                                                              e.value.checked
+                                                              ? TextDecoration
+                                                                    .lineThrough
+                                                              : TextDecoration
+                                                                    .none,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        'Qty: ${e.value.quantity} · EGP ${e.value.cost}',
+                                                        style: TextStyle(
+                                                          color: e.value.checked
+                                                              ? AppColors
+                                                                    .textMuted
+                                                                    .withOpacity(
+                                                                      0.6,
+                                                                    )
+                                                              : AppColors
+                                                                    .textMuted,
+                                                          fontSize: 11,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
+                                                if (e.value.checked)
+                                                  Text(
+                                                    'EGP ${e.value.total.toStringAsFixed(0)}',
+                                                    style: const TextStyle(
+                                                      color: AppColors.success,
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
                                               ],
                                             ),
                                           ),
-                                          if (e.key <= items.length - 1)
+                                          if (e.key < items.length - 1)
                                             const Divider(height: 1),
                                         ],
                                       ),
