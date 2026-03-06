@@ -21,6 +21,9 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
   List<PersonModel> _people = [];
   bool _loading = true;
 
+  // Tracks which date sections are expanded; default all expanded
+  final Set<String> _collapsedDates = {};
+
   @override
   void initState() {
     super.initState();
@@ -57,7 +60,9 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
 
   double get _totalItems => _items.fold(0, (s, i) => s + i.total);
   double get _totalTx => _transactions.fold(0, (s, t) => s + t.amount);
-  double get _totalBoughtItems=> _items.fold(0, (s, i) =>i.checked ? s + i.total : s ) ;
+  double get _totalBoughtItems =>
+      _items.fold(0, (s, i) => i.checked ? s + i.total : s);
+
   String _formatDate(String? raw) {
     if (raw == null || raw.isEmpty) return '—';
     try {
@@ -69,6 +74,7 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
   }
 
   /// Returns: { dateLabel -> { personName -> [items] } }
+  /// Sorted newest date first.
   Map<String, Map<String, List<ItemModel>>> _groupByDateAndPerson() {
     final Map<String, Map<String, List<ItemModel>>> grouped = {};
     for (final item in _items) {
@@ -77,19 +83,23 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
       grouped.putIfAbsent(dateLabel, () => {});
       grouped[dateLabel]!.putIfAbsent(personName, () => []).add(item);
     }
-    // Sort dates ascending
+
+    // Sort dates descending (newest first)
     final sorted = Map.fromEntries(
-      grouped.entries.toList()..sort((a, b) {
-        try {
-          final parse = (String s) {
-            final p = s.split('-');
-            return DateTime(int.parse(p[2]), int.parse(p[1]), int.parse(p[0]));
-          };
-          return parse(a.key).compareTo(parse(b.key));
-        } catch (_) {
-          return a.key.compareTo(b.key);
-        }
-      }),
+      grouped.entries.toList()
+        ..sort((a, b) {
+          try {
+            DateTime parse(String s) {
+              final p = s.split('-');
+              return DateTime(
+                  int.parse(p[2]), int.parse(p[1]), int.parse(p[0]));
+            }
+
+            return parse(b.key).compareTo(parse(a.key));
+          } catch (_) {
+            return b.key.compareTo(a.key);
+          }
+        }),
     );
     return sorted;
   }
@@ -175,9 +185,8 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                     color: AppColors.textPrimary,
                     fontSize: 14,
                   ),
-                  decoration: const InputDecoration(
-                    labelText: 'Person (optional)',
-                  ),
+                  decoration:
+                      const InputDecoration(labelText: 'Person (optional)'),
                   hint: const Text(
                     'Select person',
                     style: TextStyle(color: AppColors.textMuted),
@@ -329,7 +338,8 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                   if (qty != null && qty != item.quantity)
                     payload['quantity'] = qty;
                   final cost = double.tryParse(costCtrl.text);
-                  if (cost != null && cost != item.cost) payload['cost'] = cost;
+                  if (cost != null && cost != item.cost)
+                    payload['cost'] = cost;
                   if (noteCtrl.text != (item.note ?? ''))
                     payload['note'] = noteCtrl.text;
                   if (payload.isEmpty) {
@@ -408,7 +418,8 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                     color: AppColors.textPrimary,
                     fontSize: 14,
                   ),
-                  decoration: const InputDecoration(labelText: 'From person *'),
+                  decoration:
+                      const InputDecoration(labelText: 'From person *'),
                   hint: const Text(
                     'Select person',
                     style: TextStyle(color: AppColors.textMuted),
@@ -502,270 +513,337 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
             .expand((items) => items)
             .fold(0.0, (s, i) => i.checked ? s + i.total : s);
 
+        final isCollapsed = _collapsedDates.contains(dateLabel);
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-            // Date header
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.accentGlow,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppColors.accent.withOpacity(0.4),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.calendar_today,
-                              size: 13,
+
+            // ── Foldable date header ──────────────────────────────────────
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (isCollapsed) {
+                    _collapsedDates.remove(dateLabel);
+                  } else {
+                    _collapsedDates.add(dateLabel);
+                  }
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.accentGlow,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.accent.withOpacity(0.4),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Left: icon + date + bought price
+                    Expanded(
+                      child: Row(
+                        children: [
+                          AnimatedRotation(
+                            turns: isCollapsed ? -0.25 : 0,
+                            duration: const Duration(milliseconds: 200),
+                            child: const Icon(
+                              Icons.expand_more,
+                              size: 16,
                               color: AppColors.accent,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              dateLabel,
-                              style: const TextStyle(
-                                color: AppColors.accent,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                              ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.calendar_today,
+                            size: 13,
+                            color: AppColors.accent,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            dateLabel,
+                            style: const TextStyle(
+                              color: AppColors.accent,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              "bought item's price ${dateTotalBoughtEGP.toStringAsFixed(0)} EGP",
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              "bought ${dateTotalBoughtEGP.toStringAsFixed(0)} EGP",
                               style: const TextStyle(
                                 color: AppColors.accent,
                                 fontSize: 8,
                                 fontWeight: FontWeight.w800,
                               ),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          'EGP ${dateTotalEGP.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            color: AppColors.accent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Per-person cards under this date
-            ...personMap.entries.map((personEntry) {
-              final personName = personEntry.key;
-              final items = personEntry.value;
-              final personTotal = items.fold(0.0, (s, i) => s + i.total);
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: AppCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Person header
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: AppColors.bgElevated,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: AppColors.border),
-                                ),
-                                child: const Icon(
-                                  Icons.person_outline,
-                                  size: 16,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                personName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Text(
-                            'EGP ${personTotal.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                              color: AppColors.textPrimary,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
                       ),
-                      const Divider(height: 16),
+                    ),
+                    // Right: total
+                    Text(
+                      'EGP ${dateTotalEGP.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        color: AppColors.accent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
-                      // Items list
-                      ...items.asMap().entries.map((e) {
-                        final item = e.value;
-                        return Column(
+            // ── Collapsible content ───────────────────────────────────────
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 250),
+              crossFadeState: isCollapsed
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              firstChild: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  // Per-person cards under this date
+                  ...personMap.entries.map((personEntry) {
+                    final personName = personEntry.key;
+                    final items = personEntry.value;
+                    final personTotal =
+                        items.fold(0.0, (s, i) => s + i.total);
+                    final personTotalBoughtItemsPrice = items.fold(
+                      0.0,
+                      (s, i) => i.checked ? s + i.total : s,
+                    );
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: AppCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            InkWell(
-                              onTap: () async {
-                                try {
-                                  final updated = await ApiService()
-                                      .toggleItemChecked(item.id);
-                                  setState(() {
-                                    final idx = _items.indexWhere(
-                                      (i) => i.id == item.id,
-                                    );
-                                    if (idx != -1) _items[idx] = updated;
-                                  });
-                                } catch (err) {
-                                  if (mounted)
-                                    showError(context, err.toString());
-                                }
-                              },
-                              borderRadius: BorderRadius.circular(8),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 6,
-                                ),
-                                child: Row(
+                            // Person header
+                            Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    // Checkbox
-                                    AnimatedContainer(
-                                      duration: const Duration(
-                                        milliseconds: 200,
-                                      ),
-                                      width: 22,
-                                      height: 22,
-                                      decoration: BoxDecoration(
-                                        color: item.checked
-                                            ? AppColors.success
-                                            : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(
-                                          color: item.checked
-                                              ? AppColors.success
-                                              : AppColors.border,
-                                          width: 2,
-                                        ),
-                                      ),
-                                      child: item.checked
-                                          ? const Icon(
-                                              Icons.check,
-                                              size: 14,
-                                              color: Colors.white,
-                                            )
-                                          : null,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    // Name + subtitle
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            item.name,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 13,
-                                              color: item.checked
-                                                  ? AppColors.textMuted
-                                                  : AppColors.textPrimary,
-                                              decoration: item.checked
-                                                  ? TextDecoration.lineThrough
-                                                  : TextDecoration.none,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            'Qty: ${item.quantity}'
-                                            '${item.note != null && item.note!.isNotEmpty ? ' · ${item.note}' : ''}',
-                                            style: const TextStyle(
-                                              color: AppColors.textMuted,
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    // Price + edit
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
+                                    Row(
                                       children: [
+                                        Container(
+                                          width: 28,
+                                          height: 28,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.bgElevated,
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            border: Border.all(
+                                                color: AppColors.border),
+                                          ),
+                                          child: const Icon(
+                                            Icons.person_outline,
+                                            size: 16,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
                                         Text(
-                                          'EGP ${item.total.toStringAsFixed(0)}',
-                                          style: TextStyle(
+                                          personName,
+                                          style: const TextStyle(
                                             fontWeight: FontWeight.w700,
                                             fontSize: 13,
-                                            color: item.checked
-                                                ? AppColors.textMuted
-                                                : AppColors.textPrimary,
-                                            decoration: item.checked
-                                                ? TextDecoration.lineThrough
-                                                : TextDecoration.none,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        GestureDetector(
-                                          onTap: () =>
-                                              _showEditItemDialog(item),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(5),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.bgElevated,
-                                              borderRadius:
-                                                  BorderRadius.circular(7),
-                                              border: Border.all(
-                                                color: AppColors.border,
-                                              ),
-                                            ),
-                                            child: const Icon(
-                                              Icons.edit_outlined,
-                                              size: 13,
-                                              color: AppColors.textSecondary,
-                                            ),
+                                            color: AppColors.textPrimary,
                                           ),
                                         ),
                                       ],
                                     ),
+                                    Text(
+                                      'EGP ${personTotal.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
                                   ],
                                 ),
-                              ),
+                                const Divider(height: 16),
+                                Text(
+                                  "bought item's price ${personTotalBoughtItemsPrice.toStringAsFixed(0)} EGP",
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
-                            if (e.key < items.length - 1)
-                              const Divider(height: 12),
+                            const Divider(height: 16),
+
+                            // Items list
+                            ...items.asMap().entries.map((e) {
+                              final item = e.value;
+                              return Column(
+                                children: [
+                                  InkWell(
+                                    onTap: () async {
+                                      try {
+                                        final updated = await ApiService()
+                                            .toggleItemChecked(item.id);
+                                        setState(() {
+                                          final idx = _items.indexWhere(
+                                              (i) => i.id == item.id);
+                                          if (idx != -1)
+                                            _items[idx] = updated;
+                                        });
+                                      } catch (err) {
+                                        if (mounted)
+                                          showError(
+                                              context, err.toString());
+                                      }
+                                    },
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 6),
+                                      child: Row(
+                                        children: [
+                                          // Checkbox
+                                          AnimatedContainer(
+                                            duration: const Duration(
+                                                milliseconds: 200),
+                                            width: 22,
+                                            height: 22,
+                                            decoration: BoxDecoration(
+                                              color: item.checked
+                                                  ? AppColors.success
+                                                  : Colors.transparent,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              border: Border.all(
+                                                color: item.checked
+                                                    ? AppColors.success
+                                                    : AppColors.border,
+                                                width: 2,
+                                              ),
+                                            ),
+                                            child: item.checked
+                                                ? const Icon(Icons.check,
+                                                    size: 14,
+                                                    color: Colors.white)
+                                                : null,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          // Name + subtitle
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  item.name,
+                                                  style: TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.w600,
+                                                    fontSize: 13,
+                                                    color: item.checked
+                                                        ? AppColors.textMuted
+                                                        : AppColors
+                                                            .textPrimary,
+                                                    decoration: item.checked
+                                                        ? TextDecoration
+                                                            .lineThrough
+                                                        : TextDecoration
+                                                            .none,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  'Qty: ${item.quantity}'
+                                                  '${item.note != null && item.note!.isNotEmpty ? ' · ${item.note}' : ''}',
+                                                  style: const TextStyle(
+                                                    color:
+                                                        AppColors.textMuted,
+                                                    fontSize: 11,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          // Price + edit
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.end,
+                                            children: [
+                                              Text(
+                                                'EGP ${item.total.toStringAsFixed(0)}',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 13,
+                                                  color: item.checked
+                                                      ? AppColors.textMuted
+                                                      : AppColors.textPrimary,
+                                                  decoration: item.checked
+                                                      ? TextDecoration
+                                                          .lineThrough
+                                                      : TextDecoration.none,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              GestureDetector(
+                                                onTap: () =>
+                                                    _showEditItemDialog(item),
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.all(5),
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        AppColors.bgElevated,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            7),
+                                                    border: Border.all(
+                                                        color:
+                                                            AppColors.border),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.edit_outlined,
+                                                    size: 13,
+                                                    color: AppColors
+                                                        .textSecondary,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  if (e.key < items.length - 1)
+                                    const Divider(height: 12),
+                                ],
+                              );
+                            }),
                           ],
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-              );
-            }),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+              // Collapsed state: just a tiny gap so the next date header
+              // doesn't feel squished
+              secondChild: const SizedBox(height: 4),
+            ),
           ],
         );
       },
@@ -913,12 +991,8 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                                 ),
                               )
                             : ListView.separated(
-                                padding: const EdgeInsets.fromLTRB(
-                                  16,
-                                  0,
-                                  16,
-                                  80,
-                                ),
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 0, 16, 80),
                                 itemCount: _transactions.length,
                                 separatorBuilder: (_, __) =>
                                     const SizedBox(height: 10),
@@ -932,9 +1006,8 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                                           height: 42,
                                           decoration: BoxDecoration(
                                             color: AppColors.successGlow,
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
                                             border: Border.all(
                                               color: AppColors.success
                                                   .withOpacity(0.3),
@@ -989,8 +1062,10 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
               ],
             ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _tab.index == 0 ? _showAddItemDialog : _showAddTxDialog,
-        backgroundColor: _tab.index == 0 ? AppColors.accent : AppColors.success,
+        onPressed:
+            _tab.index == 0 ? _showAddItemDialog : _showAddTxDialog,
+        backgroundColor:
+            _tab.index == 0 ? AppColors.accent : AppColors.success,
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
