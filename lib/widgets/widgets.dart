@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import 'dart:math';
+
 
 // ─── AppCard ──────────────────────────────────────────
 class AppCard extends StatelessWidget {
@@ -363,8 +365,13 @@ void showError(BuildContext context, String msg) {
 }
 
 // ─── avatarColorFromName ──────────────────────────────
+
+int getRandomNumber(int max) {
+  final random = Random();
+  return random.nextInt(max); // 0 -> max-1
+}
 Color avatarColor(String name) {
-  final colors = [AppColors.accent, AppColors.success, AppColors.warning, AppColors.pink, AppColors.teal];
+  final colors = [AppColors.accent, AppColors.success, AppColors.warning, AppColors.pink, AppColors.teal ,AppColors.borderBright,AppColors.dangerGlow];
   int sum = 0;
   for (var c in name.codeUnits) sum += c;
   return colors[sum % colors.length];
