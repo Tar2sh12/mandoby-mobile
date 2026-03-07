@@ -46,6 +46,7 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
         ApiService().getTransactionsByShift(widget.shiftId),
         ApiService().getPeople(),
       ]);
+      print(results.toString());
       setState(() {
         _items = results[0] as List<ItemModel>;
         _transactions = results[1] as List<TransactionModel>;
@@ -53,7 +54,7 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
         _loading = false;
       });
     } catch (e) {
-      if (mounted) showError(context, e.toString());
+      if (mounted) showError(context, e.toString() + " 11");
       setState(() => _loading = false);
     }
   }
@@ -86,20 +87,18 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
 
     // Sort dates descending (newest first)
     final sorted = Map.fromEntries(
-      grouped.entries.toList()
-        ..sort((a, b) {
-          try {
-            DateTime parse(String s) {
-              final p = s.split('-');
-              return DateTime(
-                  int.parse(p[2]), int.parse(p[1]), int.parse(p[0]));
-            }
-
-            return parse(b.key).compareTo(parse(a.key));
-          } catch (_) {
-            return b.key.compareTo(a.key);
+      grouped.entries.toList()..sort((a, b) {
+        try {
+          DateTime parse(String s) {
+            final p = s.split('-');
+            return DateTime(int.parse(p[2]), int.parse(p[1]), int.parse(p[0]));
           }
-        }),
+
+          return parse(b.key).compareTo(parse(a.key));
+        } catch (_) {
+          return b.key.compareTo(a.key);
+        }
+      }),
     );
     return sorted;
   }
@@ -185,8 +184,9 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                     color: AppColors.textPrimary,
                     fontSize: 14,
                   ),
-                  decoration:
-                      const InputDecoration(labelText: 'Person (optional)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Person (optional)',
+                  ),
                   hint: const Text(
                     'Select person',
                     style: TextStyle(color: AppColors.textMuted),
@@ -238,7 +238,7 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                       _load();
                     }
                   } catch (e) {
-                    if (mounted) showError(context, e.toString());
+                    if (mounted) showError(context, e.toString() + " 222");
                   }
                   if (mounted) setS(() => saving = false);
                 },
@@ -338,8 +338,7 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                   if (qty != null && qty != item.quantity)
                     payload['quantity'] = qty;
                   final cost = double.tryParse(costCtrl.text);
-                  if (cost != null && cost != item.cost)
-                    payload['cost'] = cost;
+                  if (cost != null && cost != item.cost) payload['cost'] = cost;
                   if (noteCtrl.text != (item.note ?? ''))
                     payload['note'] = noteCtrl.text;
                   if (payload.isEmpty) {
@@ -355,7 +354,7 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                       _load();
                     }
                   } catch (e) {
-                    if (mounted) showError(context, e.toString());
+                    if (mounted) showError(context, e.toString() + " 333");
                   }
                   if (mounted) setS(() => saving = false);
                 },
@@ -418,8 +417,7 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                     color: AppColors.textPrimary,
                     fontSize: 14,
                   ),
-                  decoration:
-                      const InputDecoration(labelText: 'From person *'),
+                  decoration: const InputDecoration(labelText: 'From person *'),
                   hint: const Text(
                     'Select person',
                     style: TextStyle(color: AppColors.textMuted),
@@ -473,7 +471,7 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                       _load();
                     }
                   } catch (e) {
-                    if (mounted) showError(context, e.toString());
+                    if (mounted) showError(context, e.toString() + " 444");
                   }
                   if (mounted) setS(() => saving = false);
                 },
@@ -539,9 +537,7 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                 decoration: BoxDecoration(
                   color: AppColors.accentGlow,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.accent.withOpacity(0.4),
-                  ),
+                  border: Border.all(color: AppColors.accent.withOpacity(0.4)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -616,8 +612,7 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                   ...personMap.entries.map((personEntry) {
                     final personName = personEntry.key;
                     final items = personEntry.value;
-                    final personTotal =
-                        items.fold(0.0, (s, i) => s + i.total);
+                    final personTotal = items.fold(0.0, (s, i) => s + i.total);
                     final personTotalBoughtItemsPrice = items.fold(
                       0.0,
                       (s, i) => i.checked ? s + i.total : s,
@@ -642,10 +637,12 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                                           height: 28,
                                           decoration: BoxDecoration(
                                             color: AppColors.bgElevated,
-                                            borderRadius:
-                                                BorderRadius.circular(8),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
                                             border: Border.all(
-                                                color: AppColors.border),
+                                              color: AppColors.border,
+                                            ),
                                           ),
                                           child: const Icon(
                                             Icons.person_outline,
@@ -699,26 +696,30 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                                             .toggleItemChecked(item.id);
                                         setState(() {
                                           final idx = _items.indexWhere(
-                                              (i) => i.id == item.id);
-                                          if (idx != -1)
-                                            _items[idx] = updated;
+                                            (i) => i.id == item.id,
+                                          );
+                                          if (idx != -1) _items[idx] = updated;
                                         });
                                       } catch (err) {
                                         if (mounted)
                                           showError(
-                                              context, err.toString());
+                                            context,
+                                            err.toString() + " 555",
+                                          );
                                       }
                                     },
                                     borderRadius: BorderRadius.circular(8),
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
-                                          vertical: 6),
+                                        vertical: 6,
+                                      ),
                                       child: Row(
                                         children: [
                                           // Checkbox
                                           AnimatedContainer(
                                             duration: const Duration(
-                                                milliseconds: 200),
+                                              milliseconds: 200,
+                                            ),
                                             width: 22,
                                             height: 22,
                                             decoration: BoxDecoration(
@@ -735,9 +736,11 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                                               ),
                                             ),
                                             child: item.checked
-                                                ? const Icon(Icons.check,
+                                                ? const Icon(
+                                                    Icons.check,
                                                     size: 14,
-                                                    color: Colors.white)
+                                                    color: Colors.white,
+                                                  )
                                                 : null,
                                           ),
                                           const SizedBox(width: 10),
@@ -750,18 +753,15 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                                                 Text(
                                                   item.name,
                                                   style: TextStyle(
-                                                    fontWeight:
-                                                        FontWeight.w600,
+                                                    fontWeight: FontWeight.w600,
                                                     fontSize: 13,
                                                     color: item.checked
                                                         ? AppColors.textMuted
-                                                        : AppColors
-                                                            .textPrimary,
+                                                        : AppColors.textPrimary,
                                                     decoration: item.checked
                                                         ? TextDecoration
-                                                            .lineThrough
-                                                        : TextDecoration
-                                                            .none,
+                                                              .lineThrough
+                                                        : TextDecoration.none,
                                                   ),
                                                 ),
                                                 const SizedBox(height: 2),
@@ -769,8 +769,7 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                                                   'Qty: ${item.quantity}'
                                                   '${item.note != null && item.note!.isNotEmpty ? ' · ${item.note}' : ''}',
                                                   style: const TextStyle(
-                                                    color:
-                                                        AppColors.textMuted,
+                                                    color: AppColors.textMuted,
                                                     fontSize: 11,
                                                   ),
                                                 ),
@@ -793,7 +792,7 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                                                       : AppColors.textPrimary,
                                                   decoration: item.checked
                                                       ? TextDecoration
-                                                          .lineThrough
+                                                            .lineThrough
                                                       : TextDecoration.none,
                                                 ),
                                               ),
@@ -802,23 +801,24 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                                                 onTap: () =>
                                                     _showEditItemDialog(item),
                                                 child: Container(
-                                                  padding:
-                                                      const EdgeInsets.all(5),
+                                                  padding: const EdgeInsets.all(
+                                                    5,
+                                                  ),
                                                   decoration: BoxDecoration(
-                                                    color:
-                                                        AppColors.bgElevated,
+                                                    color: AppColors.bgElevated,
                                                     borderRadius:
                                                         BorderRadius.circular(
-                                                            7),
+                                                          7,
+                                                        ),
                                                     border: Border.all(
-                                                        color:
-                                                            AppColors.border),
+                                                      color: AppColors.border,
+                                                    ),
                                                   ),
                                                   child: const Icon(
                                                     Icons.edit_outlined,
                                                     size: 13,
-                                                    color: AppColors
-                                                        .textSecondary,
+                                                    color:
+                                                        AppColors.textSecondary,
                                                   ),
                                                 ),
                                               ),
@@ -991,8 +991,12 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                                 ),
                               )
                             : ListView.separated(
-                                padding:
-                                    const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  0,
+                                  16,
+                                  80,
+                                ),
                                 itemCount: _transactions.length,
                                 separatorBuilder: (_, __) =>
                                     const SizedBox(height: 10),
@@ -1006,8 +1010,9 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
                                           height: 42,
                                           decoration: BoxDecoration(
                                             color: AppColors.successGlow,
-                                            borderRadius:
-                                                BorderRadius.circular(10),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
                                             border: Border.all(
                                               color: AppColors.success
                                                   .withOpacity(0.3),
@@ -1062,10 +1067,8 @@ class _ShiftDetailScreenState extends State<ShiftDetailScreen>
               ],
             ),
       floatingActionButton: FloatingActionButton(
-        onPressed:
-            _tab.index == 0 ? _showAddItemDialog : _showAddTxDialog,
-        backgroundColor:
-            _tab.index == 0 ? AppColors.accent : AppColors.success,
+        onPressed: _tab.index == 0 ? _showAddItemDialog : _showAddTxDialog,
+        backgroundColor: _tab.index == 0 ? AppColors.accent : AppColors.success,
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );

@@ -359,6 +359,7 @@ void showSuccess(BuildContext context, String msg) {
 }
 
 void showError(BuildContext context, String msg) {
+  print('Error: $msg');
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text(msg), backgroundColor: AppColors.danger, behavior: SnackBarBehavior.floating),
   );

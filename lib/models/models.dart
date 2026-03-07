@@ -61,28 +61,20 @@ class ShiftModel {
 class PersonModel {
   final String id;
   final String name;
-  final int credit;
-  final int expenses;
   final String? title;
+  final int? credit;
+  final int? expenses;
 
-  PersonModel({
-    required this.id,
-    required this.name,
-    required this.credit,
-    required this.expenses,
-    this.title,
-  });
+  PersonModel({required this.id, required this.name, this.title, this.credit, this.expenses});
 
   factory PersonModel.fromJson(Map<String, dynamic> j) => PersonModel(
     id: j['_id'] ?? j['id'] ?? '',
     name: j['name'] ?? '',
-    credit: (j['credit'] ?? 0) is int
-        ? j['credit']
-        : (j['credit'] as num).toInt(),
-    expenses: (j['expenses'] ?? 0) is int
-        ? j['expenses']
-        : (j['expenses'] as num).toInt(),
     title: j['title'],
+    credit: j['credit'] as int?,
+    expenses: j['expenses'] as int?,
+
+
   );
 
   String get initial => name.isNotEmpty ? name[0].toUpperCase() : '?';
@@ -141,7 +133,7 @@ class ItemModel {
 
   double get total => cost * quantity;
 
-  //checked setter
+  //checked setter 
   bool settedChecked(bool value) {
     this.checked = value;
     return this.checked;
