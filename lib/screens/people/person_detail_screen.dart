@@ -99,7 +99,8 @@ class _PersonDetailScreenState extends State<PersonDetailScreen> {
   }
 
   double get _totalPaid => _transactions.fold(0, (s, t) => s + t.amount);
-  double get totalUnPaidItems => totalPriceOfShiftItems - _totalPaid;
+  double get _totalPaidInShift => _shiftTx.fold(0, (s, t) => s + t.amount);
+  double get totalUnPaidItems =>  totalPriceOfShiftItems - _totalPaidInShift;
   @override
   Widget build(BuildContext context) {
     if (_loading)
