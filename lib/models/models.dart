@@ -62,8 +62,8 @@ class PersonModel {
   final String id;
   final String name;
   final String? title;
-  final int? credit;
-  final int? expenses;
+  final double? credit;
+  final double? expenses;
 
   PersonModel({required this.id, required this.name, this.title, this.credit, this.expenses});
 
@@ -71,8 +71,12 @@ class PersonModel {
     id: j['_id'] ?? j['id'] ?? '',
     name: j['name'] ?? '',
     title: j['title'],
-    credit: j['credit'] as int?,
-    expenses: j['expenses'] as int?,
+    credit: (j['credit'] ?? 0) is double
+        ? j['credit']
+        : (j['credit'] as num).toDouble(),
+    expenses: (j['expenses'] ?? 0) is double
+        ? j['expenses']
+        : (j['expenses'] as num).toDouble(),
 
 
   );

@@ -46,6 +46,9 @@ class _PeopleScreenState extends State<PeopleScreen> {
     }
   }
 
+  double get _totalUnpaidMoney =>
+      _people.fold(0, (sum, p) => sum + (p.expenses ?? 0));
+  // double get _totalTx => _transactions.fold(0, (s, t) => s + t.amount);
   void _filter() {
     final q = _searchCtrl.text.toLowerCase();
     setState(
@@ -226,68 +229,87 @@ class _PeopleScreenState extends State<PeopleScreen> {
                             )
                           : null,
                     )
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _filtered.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (_, i) {
-                        final p = _filtered[i];
-                        final color = avatarColor(p.name);
-                        return AppCard(
-                          onTap: () => context.push('/people/${p.id}'),
-                          child: Row(
-                            children: [
-                              AvatarCircle(
-                                initial: p.initial,
-                                color: color,
-                                size: 46,
-                                fontSize: 18,
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                  : Column(
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                          child: Text(
+                            'Total unpaid: \$${_totalUnpaidMoney.toStringAsFixed(_totalUnpaidMoney.toString().length)}',
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _filtered.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (_, i) {
+                              final p = _filtered[i];
+                              final color = avatarColor(p.name);
+                              return AppCard(
+                                onTap: () => context.push('/people/${p.id}'),
+                                child: Row(
                                   children: [
-                                    Text(
-                                      p.name,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 15,
-                                        color: AppColors.textPrimary,
-                                      ),
+                                    AvatarCircle(
+                                      initial: p.initial,
+                                      color: color,
+                                      size: 46,
+                                      fontSize: 18,
                                     ),
-                                    Text(
-                                      'credits : ${p.credit} EGP',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 8,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                    Text(
-                                      'expenses : ${p.expenses} EGP',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 8,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            p.name,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 15,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                          Text(
+                                            'credits : ${p.credit} EGP',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 8,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                          Text(
+                                            'expenses : ${p.expenses} EGP',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 8,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
 
-                                    if (p.title?.isNotEmpty == true) ...[
-                                      const SizedBox(height: 4),
-                                      AppBadge.muted(p.title!),
-                                    ],
+                                          if (p.title?.isNotEmpty == true) ...[
+                                            const SizedBox(height: 4),
+                                            AppBadge.muted(p.title!),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.chevron_right,
+                                      color: AppColors.textMuted,
+                                    ),
                                   ],
                                 ),
-                              ),
-                              const Icon(
-                                Icons.chevron_right,
-                                color: AppColors.textMuted,
-                              ),
-                            ],
+                              );
+                            },
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
             ),
       floatingActionButton: FloatingActionButton(
@@ -298,3 +320,8 @@ class _PeopleScreenState extends State<PeopleScreen> {
     );
   }
 }
+
+
+/**
+ * 
+ */

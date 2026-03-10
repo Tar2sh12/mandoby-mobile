@@ -32,7 +32,7 @@ class ProfileScreen extends StatelessWidget {
       (Icons.email_outlined, 'Email', user?.email ?? '—'),
       (Icons.phone_outlined, 'Phone', user?.phone ?? '—'),
       (Icons.cake_outlined, 'Date of Birth', user?.DOB ?? '—'),
-      (Icons.tag, 'Age', calculateAge(user?.DOB?? ''). toString() ?? '—'),
+      (Icons.tag, 'Age', calculateAge(user?.DOB?? '').toString() ?? '—'),
       (Icons.shield_outlined, 'Role', user?.role ?? '—'),
     ];
 

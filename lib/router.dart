@@ -15,7 +15,7 @@ import '../screens/items/items_screen.dart';
 import '../screens/transactions/transactions_screen.dart';
 import '../screens/profile/profile_screen.dart';
 
-final _shellRoutes = ['/dashboard', '/shifts', '/people', '/items', '/transactions'];
+// final _shellRoutes = ['/dashboard', '/shifts', '/people', '/items', '/transactions'];
 
 int _shellIndex(String location) {
   if (location.startsWith('/dashboard')) return 0;
