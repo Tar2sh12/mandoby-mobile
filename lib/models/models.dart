@@ -121,7 +121,7 @@ class ItemModel {
         ? j['cost']
         : (j['cost'] as num).toDouble(),
     note: j['note'],
-    date: j['date'],
+    date: j['createdAt'],
     shiftId: j['shiftId'] is Map
         ? ItemShiftRef.fromJson(j['shiftId'])
         : j['shiftId'] is String
